@@ -1,0 +1,486 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.sist.web.dao.BoardDao">
+    <!-- 게시판 -->
+    <resultMap type="com.sist.web.model.Board" id="boardResultMap">
+        <id column="BRD_SEQ" property="brdSeq"/>
+        <result column="USER_ID" property="userId"/>
+        <result column="USER_NAME" property="userName"/>
+        <result column="USER_EMAIL" property="userEmail"/>
+        <result column="BRD_GROUP" property="brdGroup"/>
+        <result column="BRD_ORDER" property="brdOrder"/>
+        <result column="BRD_INDENT" property="brdIndent"/>
+        <result column="BRD_TITLE" property="brdTitle"/>
+        <result column="BRD_CONTENT" property="brdContent"/>    
+        <result column="BRD_READ_CNT" property="brdReadCnt"/>
+        <result column="REG_DATE" property="regDate"/>
+        <result column="BRD_PARENT" property="brdParent"/>
+        <result column="MOD_DATE" property="modDate"/>   
+    </resultMap>
+    
+    <!-- 좋아요 -->
+    <resultMap type="com.sist.web.model.BoardLike" id="boardLikeResultMap">
+    	<result column="BRD_SEQ" property="brdSeq"/>
+        <result column="USER_ID" property="userId"/>
+    </resultMap>
+
+    <!-- 첨부파일 resultMap -->
+    <resultMap type="com.sist.web.model.BoardFile" id="boardFileResultMap">
+        <id column="BRD_SEQ" property="brdSeq"/>
+        <id column="FILE_SEQ" property="fileSeq"/>
+        <result column="FILE_ORG_NAME" property="fileOrgName"/>
+        <result column="FILE_NAME" property="fileName"/>
+        <result column="FILE_EXT" property="fileExt"/>
+        <result column="FILE_SIZE" property="fileSize"/>
+        <result column="REG_DATE" property="regDate"/>
+    </resultMap>
+    
+    <!-- 뎃글 -->
+    <resultMap type="com.sist.web.model.Comment" id="commentResultMap">
+    	<result column="COMMENT_NUM" property="commentNum"/>
+    	<result column="BRD_SEQ" property="brdSeq"/>
+    	<result column="CONTENT" property="content"/>
+    	<result column="USER_ID" property="userId"/>
+    	<result column="REG_DATE" property="regDate"/>
+    	<result column="PARENT_NUM" property="parentNum"/>
+    	<result column="GROUP_NUM" property="groupNum"/>
+    	<result column="ORDER_NUM" property="orderNum"/>
+    	<result column="INDENT_NUM" property="indentNum"/>
+    </resultMap>
+
+    <!-- 게시물 등록 -->
+    <insert id="boardInsert" parameterType="com.sist.web.model.Board">
+        <!-- 선행 처리기(시퀀스 조회) -->
+        <selectKey resultType="long" keyProperty="brdSeq" order="BEFORE">
+            <if test="boardType == 2">    
+                SELECT SEQ_FREE_SEQ.NEXTVAL FROM DUAL
+            </if> 
+               
+            <if test="boardType == 3">    
+                SELECT SEQ_EXHIBITION_SEQ.NEXTVAL FROM DUAL
+            </if>   
+             
+            <if test="boardType == 4">    
+                SELECT SEQ_QNA_SEQ.NEXTVAL FROM DUAL
+            </if>
+        </selectKey>
+        
+        <if test="boardType == 2">    
+            INSERT INTO SPR_FREE (
+        </if>    
+        <if test="boardType == 3">    
+            INSERT INTO SPR_EXHIBITION (
+        </if>    
+        <if test="boardType == 4">    
+            INSERT INTO SPR_QNA (
+        </if>
+                BRD_SEQ,
+                USER_ID,
+                BRD_GROUP,
+                BRD_ORDER,
+                BRD_INDENT,
+                BRD_TITLE,
+                BRD_CONTENT,
+                BRD_READ_CNT,
+                REG_DATE,
+                BRD_PARENT,
+                MOD_DATE
+            ) VALUES (
+                #{brdSeq},
+                #{userId},
+                #{brdSeq},
+                #{brdOrder},
+                #{brdIndent},
+                #{brdTitle},
+                #{brdContent},
+                0,
+                SYSDATE,
+                #{brdParent},
+                SYSDATE
+            )  
+    </insert>
+
+    <!-- 첨부파일 등록 -->
+    <insert id="boardFileInsert" parameterType="com.sist.web.model.BoardFile">
+        <if test="boardType == 2">    
+            INSERT INTO FREE_FILE (
+        </if>    
+        <if test="boardType == 3">    
+            INSERT INTO EXHIBITION_FILE (
+        </if>    
+        <if test="boardType == 4">    
+            INSERT INTO QNA_FILE (
+        </if>
+                BRD_SEQ,
+                FILE_SEQ,
+                FILE_ORG_NAME,
+                FILE_NAME,
+                FILE_EXT,
+                FILE_SIZE,
+                REG_DATE
+            ) VALUES (
+                #{brdSeq},
+                #{fileSeq},
+                #{fileOrgName},
+                #{fileName},
+                #{fileExt},
+                #{fileSize},
+                SYSDATE
+            )
+    </insert>
+
+    <!-- 게시물 리스트 -->
+    <select id="boardList" parameterType="com.sist.web.model.Board" resultMap="boardResultMap">
+        SELECT BRD_SEQ,
+               USER_ID,
+               USER_NAME,
+               USER_EMAIL,
+               BRD_GROUP,
+               BRD_ORDER,
+               BRD_INDENT,
+               BRD_TITLE,
+               BRD_CONTENT,
+               BRD_READ_CNT,
+               REG_DATE, 
+               BRD_PARENT,
+               MOD_DATE
+        FROM (SELECT ROWNUM AS RNUM,
+                     BRD_SEQ,
+                     USER_ID,
+                     USER_NAME,
+                     USER_EMAIL,
+                     BRD_GROUP,
+                     BRD_ORDER,
+                     BRD_INDENT,
+                     BRD_TITLE,
+                     BRD_CONTENT,
+                     BRD_READ_CNT,
+                     REG_DATE, 
+                     BRD_PARENT,
+                     MOD_DATE
+              FROM (SELECT A.BRD_SEQ AS BRD_SEQ,
+                           A.USER_ID,
+                           NVL(B.USER_NAME, '') AS USER_NAME,
+                           NVL(B.USER_EMAIL, '') AS USER_EMAIL,
+                           NVL(A.BRD_GROUP, 0) AS BRD_GROUP,
+                           NVL(A.BRD_ORDER, 0) AS BRD_ORDER,
+                           NVL(A.BRD_INDENT, 0) AS BRD_INDENT,
+                           NVL(A.BRD_TITLE, '') AS BRD_TITLE,
+                           NVL(A.BRD_CONTENT, '') AS BRD_CONTENT,
+                           NVL(A.BRD_READ_CNT, 0) AS BRD_READ_CNT,
+                           NVL(TO_CHAR(A.REG_DATE, 'YYYY.MM.DD HH24:MI:SS'), '') AS REG_DATE, 
+                           NVL(A.BRD_PARENT, 0) AS BRD_PARENT,
+                           NVL(MOD_DATE, '') AS MOD_DATE
+                     <if test="boardType == 1">    
+                        FROM SPR_NOTICE A, SPR_USER B
+                    </if> 
+                    <if test="boardType == 2">    
+                        FROM SPR_FREE A, SPR_USER B
+                    </if>    
+                    <if test="boardType == 3">    
+                        FROM SPR_EXHIBITION A, SPR_USER B
+                    </if>    
+                    <if test="boardType == 4">    
+                        FROM SPR_QNA A, SPR_USER B
+                    </if>
+                    WHERE A.USER_ID = B.USER_ID
+                    <if test='searchType != null and searchType != "" and searchValue != null and searchValue != ""'>
+                        <choose>
+                            <when test='searchType == "1"'>                       
+                                AND B.USER_NAME LIKE '%'||#{searchValue}||'%'
+                            </when>                
+                            <when test='searchType == "2"'> 
+                                AND A.BRD_TITLE LIKE '%'||#{searchValue}||'%'
+                            </when>
+                            <when test='searchType == "3"'>
+                                AND DBMS_LOB.INSTR(A.BRD_CONTENT, #{searchValue}) > 0
+                            </when>
+                        </choose>                    
+                    </if>
+                    ORDER BY A.BRD_GROUP DESC, A.BRD_ORDER ASC))
+        WHERE RNUM <![CDATA[>=]]> #{startRow}
+          AND RNUM <![CDATA[<=]]> #{endRow}
+    </select>
+
+    <!-- 총 게시물 수 -->
+    <select id="boardListCount" parameterType="com.sist.web.model.Board" resultType="long">
+        SELECT COUNT(A.BRD_SEQ) AS CNT
+        <if test="boardType == 1">    
+            FROM SPR_NOTICE A, SPR_USER B
+        </if>                               
+        <if test="boardType == 2">    
+            FROM SPR_FREE A, SPR_USER B
+        </if>    
+        <if test="boardType == 3">    
+            FROM SPR_EXHIBITION A, SPR_USER B
+        </if>    
+        <if test="boardType == 4">    
+            FROM SPR_QNA A, SPR_USER B
+        </if>
+        WHERE A.USER_ID = B.USER_ID
+        <if test='searchType != null and searchType != "" and searchValue != null and searchValue != ""'>
+            <choose>
+                <when test='searchType == "1"'>
+                    AND B.USER_NAME LIKE '%'||#{searchValue}||'%'
+                </when>                
+                <when test='searchType == "2"'> 
+                    AND A.BRD_TITLE LIKE '%'||#{searchValue}||'%'
+                </when>
+                <when test='searchType == "3"'>
+                    AND DBMS_LOB.INSTR(A.BRD_CONTENT, #{searchValue}) > 0
+                </when>
+            </choose>                    
+        </if>      
+    </select>
+    
+    <!-- 게시물 조회 -->
+	<select id="boardSelect" parameterType="long" resultMap="boardResultMap">
+	    SELECT  
+	        A.BRD_SEQ BRD_SEQ,
+	        NVL(A.USER_ID, '') USER_ID,
+	        NVL(B.USER_NAME, '') USER_NAME,
+	        NVL(B.USER_EMAIL, '') USER_EMAIL,
+	        NVL(A.BRD_GROUP, 0) BRD_GROUP,
+	        NVL(A.BRD_ORDER, 0) BRD_ORDER,
+	        NVL(A.BRD_INDENT, 0) BRD_INDENT,
+	        NVL(A.BRD_TITLE, '') BRD_TITLE,
+	        NVL(A.BRD_CONTENT, '') BRD_CONTENT,
+	        NVL(A.BRD_READ_CNT, 0) BRD_READ_CNT,
+	        NVL(TO_CHAR(A.REG_DATE, 'YYYY.MM.DD HH24:MI:SS'), '') REG_DATE,
+	        NVL(A.BRD_PARENT, 0) BRD_PARENT,
+	        NVL(MOD_DATE, '') AS MOD_DATE
+	    <if test="boardType == 1">
+	        FROM SPR_NOTICE A,SPR_USER B
+	    </if>
+	    <if test="boardType == 2">
+	        FROM SPR_FREE A, SPR_USER B
+	    </if>
+	    <if test="boardType == 3">
+	        FROM SPR_EXHIBITION A,SPR_USER B
+	    </if>
+	    <if test="boardType == 4">
+	        FROM SPR_QNA A,SPR_USER B
+	    </if>
+	    WHERE A.BRD_SEQ = #{brdSeq}
+	      AND A.USER_ID = B.USER_ID
+	</select>
+	
+	<!-- 첨부파일 조회 -->
+	<select id="boardFileSelect" parameterType="long"  resultMap="boardFileResultMap">
+		SELECT	BRD_SEQ,
+			    FILE_SEQ,
+			    NVL(FILE_ORG_NAME, '') FILE_ORG_NAME,
+			    NVL(FILE_NAME, '') FILE_NAME,
+			    NVL(FILE_EXT, '') FILE_EXT,
+			    NVL(FILE_SIZE, 0) FILE_SIZE,
+			    NVL(TO_CHAR(REG_DATE, 'YYYY.MM.DD HH24:MI:SS'), '') REG_DATE
+	<if test="boardType == 1">
+			FROM  NOTICE_FILE
+	</if>
+	<if test="boardType == 2">
+			FROM  FREE_FILE
+	</if>
+	<if test="boardType == 3">
+			FROM  EXHIBITION_FILE
+	</if>
+	<if test="boardType == 4">
+			FROM  QNA_FILE
+	</if>
+		 WHERE  BRD_SEQ = #{brdSeq}
+		   AND	FILE_SEQ = 1
+	</select>
+	
+	<!-- 게시글 조회수 증가 -->
+	<update id="boardReadCntPlus" parameterType="long">
+		<if test="boardType == 2">
+			UPDATE SPR_FREE
+		</if>
+		<if test="boardType == 3">
+			UPDATE SPR_EXHIBITION
+		</if>
+		<if test="boardType == 4">
+			UPDATE SPR_QNA
+		</if>
+			   SET BRD_READ_CNT = BRD_READ_CNT + 1
+			 WHERE BRD_SEQ = #{brdSeq}
+	</update> 
+	
+	<!-- BRD_GROUP의 BRD_ORDER 수정 -->
+	<update id="boardGroupOrderUpdate" parameterType="com.sist.web.model.Board">
+		UPDATE SPR_FREE
+		   SET BRD_ORDER = BRD_ORDER  + 1
+		 WHERE BRD_GROUP = #{brdGroup}
+		   AND BRD_ORDER <![CDATA[>=]]>#{brdOrder}
+	</update>
+	
+	<!-- 게시글 답글 등록 -->
+	<insert id="boardReplyInsert" parameterType="com.sist.web.model.Board">
+	
+	<!-- 선행 처리기(시퀀스 조회) -->
+    <selectKey resultType="long" keyProperty="brdSeq" order="BEFORE">
+      SELECT SEQ_FREE_SEQ.NEXTVAL FROM DUAL
+    </selectKey>
+		
+		INSERT INTO SPR_FREE (
+		            BRD_SEQ,
+		            USER_ID,
+		            BRD_GROUP,
+		            BRD_ORDER,
+		            BRD_INDENT,
+		            BRD_TITLE,
+		            BRD_CONTENT,
+		            BRD_READ_CNT,
+		            REG_DATE,
+		            BRD_PARENT,
+		            MOD_DATE
+		) VALUES (
+		    #{brdSeq},
+		    #{userId},
+		    #{brdGroup},
+		    #{brdOrder},
+		    #{brdIndent},
+		    #{brdTitle},
+		    #{brdContent},
+		    0,
+		    SYSDATE,
+		    #{brdParent},
+		    SYSDATE
+		)
+	</insert>
+	
+	<!-- 게시물 삭제시 답변글수 조회 -->
+	<select id="boardAnswersCount" parameterType="long" resultType="int">
+		SELECT COUNT(BRD_SEQ) CNT
+		  FROM SPR_FREE
+		 WHERE BRD_PARENT = #{brdParent}
+	</select>
+	
+	<!-- 게시물 삭제-->
+	<delete id="boardDelete" parameterType="long">
+		<if test="boardType == 2">
+			DELETE FROM SPR_FREE
+		</if>
+		<if test="boardType == 3">
+			DELETE FROM SPR_EXHIBITION
+		</if>
+		<if test="boardType == 4">
+			DELETE FROM SPR_QNA
+		</if>
+	 	 WHERE BRD_SEQ = #{brdSeq}
+	</delete>
+	
+	<!-- 게시물 첨부파일 삭제-->
+	<delete id="boardFileDelete" parameterType="long">
+		<if test="boardType == 2">
+			DELETE FROM FREE_FILE
+		</if>
+		<if test="boardType == 3">
+			DELETE FROM EXHIBITION_FILE
+		</if>
+		<if test="boardType == 4">
+			DELETE FROM QNA_FILE
+		</if>
+	 	 WHERE BRD_SEQ = #{brdSeq}
+	</delete>
+	
+	<!-- 게시물 수정 -->
+	<update id="boardUpdate" parameterType="com.sist.web.model.Board">
+		<if test="boardType == 2">
+			UPDATE SPR_FREE
+		</if>
+		<if test="boardType == 3">
+			UPDATE SPR_EXHIBITION
+		</if>
+		<if test="boardType == 4">
+			UPDATE SPR_QNA 
+		</if>
+   	   SET BRD_TITLE = #{brdTitle},
+           BRD_CONTENT = #{brdContent}
+ 	 WHERE BRD_SEQ = #{brdSeq}
+	</update> 
+	
+	<!-- 좋아요 조회 -->
+	<select id="selectLike" parameterType="map" resultMap="boardLikeResultMap">
+	SELECT *
+	<if test="boardType == 1">
+		FROM   SPR_NOTICE_LIKE
+	</if>
+	<if test="boardType == 2">
+		FROM   SPR_FREE_LIKE
+	</if>
+	<if test="boardType == 3">
+		FROM   SPR_EXHIBITION_LIKE
+	</if>
+	<if test="boardType == 4">
+		FROM   SPR_QNA_LIKE      
+	</if>
+		WHERE USER_ID = #{userId}
+		  AND BRD_SEQ = #{brdSeq}
+	</select>
+	
+	<!-- 좋아요 증가 -->
+	<insert id="insertLike" parameterType="long">
+	<if test="boardType == 1">
+		INSERT INTO SPR_NOTICE_LIKE (
+	</if>
+	<if test="boardType == 2">
+		INSERT INTO SPR_FREE_LIKE (
+	</if>
+	<if test="boardType == 3">
+		INSERT INTO SPR_EXHIBITION_LIKE (
+	</if>
+	<if test="boardType == 4">
+		INSERT INTO SPR_QNA_LIKE (
+	</if>
+	    USER_ID,
+	    BRD_SEQ
+	) VALUES (
+	    #{userId},
+	    #{brdSeq}
+	)
+	</insert>
+	
+	<!-- 좋아요 감소 -->
+	<delete id="deleteLike" parameterType="long">
+	<if test="boardType == 1">
+		DELETE FROM SPR_NOTICE_LIKE
+	</if>
+	<if test="boardType == 2">
+		DELETE FROM SPR_FREE_LIKE
+	</if>
+	<if test="boardType == 3">
+		DELETE FROM SPR_EXHIBITION_LIKE
+	</if>
+	<if test="boardType == 4">
+		DELETE FROM SPR_QNA_LIKE
+	</if>
+	 WHERE USER_ID = #{userId}
+	   AND BRD_SEQ = #{brdSeq}
+	</delete>
+	
+	<!-- 좋아요 수 조회 -->
+	<select id="selectLikeCount" parameterType="map" resultType="int">
+	    <if test="boardType == 1">
+	        SELECT COUNT(*) 
+	        FROM SPR_NOTICE_LIKE 
+	        WHERE BRD_SEQ = #{brdSeq}
+	    </if>
+	    <if test="boardType == 2">
+	        SELECT COUNT(*) 
+	        FROM SPR_FREE_LIKE 
+	        WHERE BRD_SEQ = #{brdSeq}
+	    </if>
+	    <if test="boardType == 3">
+	        SELECT COUNT(*) 
+	        FROM SPR_EXHIBITION_LIKE 
+	        WHERE BRD_SEQ = #{brdSeq}
+	    </if>
+	    <if test="boardType == 4">
+	        SELECT COUNT(*) 
+	        FROM SPR_QNA_LIKE 
+	        WHERE BRD_SEQ = #{brdSeq}
+	    </if>
+	</select>
+	
+	
+</mapper>
