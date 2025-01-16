@@ -1,0 +1,178 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.sist.web.dao.CommentDao">
+	
+	<!-- 뎃글 -->
+    <resultMap type="com.sist.web.model.Comment" id="commentResultMap">
+    	<result column="COMMENT_NUM" property="commentNum"/>
+    	<result column="BRD_SEQ" property="brdSeq"/>
+    	<result column="CONTENT" property="content"/>
+    	<result column="USER_ID" property="userId"/>
+    	<result column="REG_DATE" property="regDate"/>
+    	<result column="PARENT_NUM" property="parentNum"/>
+    	<result column="GROUP_NUM" property="groupNum"/>
+    	<result column="ORDER_NUM" property="orderNum"/>
+    	<result column="INDENT_NUM" property="indentNum"/>
+    </resultMap>
+
+    <!-- 댓글 리스트 조회 -->
+	<select id="commentSelect" parameterType="map" resultMap="commentResultMap">
+		SELECT  BRD_SEQ,
+		        NVL(USER_ID, '') USER_ID,
+		        NVL(CONTENT, '') CONTENT,
+		        NVL(COMMENT_NUM, 0) COMMENT_NUM,
+		        NVL(TO_CHAR(REG_DATE, 'YYYY.MM.DD HH24:MI:SS'), '') REG_DATE,
+		        NVL(PARENT_NUM, 0) PARENT_NUM,
+		        NVL(GROUP_NUM, 0) GROUP_NUM,
+		        NVL(ORDER_NUM, 0) ORDER_NUM,
+		        NVL(INDENT_NUM, 0) INDENT_NUM
+		<if test="boardType == 3">
+		  FROM  EXHIBITION_COMMENT
+		</if>
+		<if test="boardType == 4">
+		  FROM  QNA_COMMENT
+		</if>
+		 WHERE  BRD_SEQ = #{brdSeq}
+		 ORDER BY GROUP_NUM DESC, ORDER_NUM ASC
+	</select>
+	
+	<!-- 댓글 삭제 조회 -->
+	<select id="comment1Select" parameterType="com.sist.web.model.Comment" resultMap="commentResultMap">
+		SELECT  BRD_SEQ,
+		        NVL(USER_ID, '') USER_ID,
+		        NVL(CONTENT, '') CONTENT,
+		        NVL(COMMENT_NUM, 0) COMMENT_NUM,
+		        NVL(TO_CHAR(REG_DATE, 'YYYY.MM.DD HH24:MI:SS'), '') REG_DATE,
+		        NVL(PARENT_NUM, 0) PARENT_NUM,
+		        NVL(GROUP_NUM, 0) GROUP_NUM,
+		        NVL(ORDER_NUM, 0) ORDER_NUM,
+		        NVL(INDENT_NUM, 0) INDENT_NUM
+		<if test="boardType == 3">
+		  FROM  EXHIBITION_COMMENT
+		</if>
+		<if test="boardType == 4">
+		  FROM  QNA_COMMENT
+		</if>
+		 WHERE  BRD_SEQ = #{brdSeq}
+		   AND	COMMENT_NUM = #{commentNum}
+	</select>
+	
+	<!-- 댓글 등록 -->
+	<insert id="commentInsert" parameterType="com.sist.web.model.Comment">
+		 <!-- 선행 처리기(시퀀스 조회) -->
+        <selectKey resultType="long" keyProperty="commentNum" order="BEFORE">
+            <if test="boardType == 3">    
+                SELECT SEQ_EXHIBITION_COMMENT_SEQ.NEXTVAL FROM DUAL
+            </if>   
+             
+            <if test="boardType == 4">    
+                SELECT SEQ_QNA_COMMENT_SEQ.NEXTVAL FROM DUAL
+            </if>
+        </selectKey>
+		
+		<if test="boardType == 3">
+		INSERT INTO EXHIBITION_COMMENT (
+		</if>
+		<if test="boardType == 4">		
+		INSERT INTO QNA_COMMENT (
+		</if>
+				    COMMENT_NUM,
+				    BRD_SEQ,
+				    CONTENT,
+				    USER_ID,
+				    REG_DATE,
+				    PARENT_NUM,
+				    GROUP_NUM,
+				    ORDER_NUM,
+				    INDENT_NUM
+				) VALUES (
+				    #{commentNum},
+				    #{brdSeq},
+				    #{content},
+				    #{userId},
+				    SYSDATE,
+				    #{parentNum},
+				    #{commentNum},
+				    #{orderNum},
+				    #{indentNum}
+				)
+	</insert>
+    
+	<!-- 댓글 삭제-->
+	<delete id="commentDelete" parameterType="com.sist.web.model.Comment">
+		<if test="boardType == 3">
+			DELETE FROM EXHIBITION_COMMENT
+		</if>
+		<if test="boardType == 4">
+			DELETE FROM QNA_COMMENT
+		</if>
+	 	 WHERE COMMENT_NUM = #{commentNum}
+	 	   AND BRD_SEQ = #{brdSeq}
+		   AND GROUP_NUM = #{groupNum}
+	</delete>
+	
+	<!-- 그룹 댓글 삭제-->
+	<delete id="commentDeleteGroup" parameterType="com.sist.web.model.Comment">
+		<if test="boardType == 3">
+			DELETE FROM EXHIBITION_COMMENT
+		</if>
+		<if test="boardType == 4">
+			DELETE FROM QNA_COMMENT
+		</if>
+	 	 WHERE GROUP_NUM = #{groupNum}
+	 	   AND BRD_SEQ = #{brdSeq}
+	</delete>
+	
+	<!-- 대댓글 GROUP_NUM의 ORDER_NUM 수정 -->
+	<update id="commentGroupOrderUpdate" parameterType="com.sist.web.model.Comment">
+		<if test="boardType == 3">
+			UPDATE EXHIBITION_COMMENT
+		</if>
+		<if test="boardType == 4">
+			UPDATE QNA_COMMENT
+		</if>
+		   SET ORDER_NUM = ORDER_NUM  + 1
+		 WHERE GROUP_NUM = #{groupNum}
+		   AND ORDER_NUM <![CDATA[>=]]>#{orderNum}
+	</update>
+	
+	<!-- 대댓글 등록 -->
+	<insert id="commentReplyInsert" parameterType="com.sist.web.model.Comment">
+	
+	<!-- 선행 처리기(시퀀스 조회) -->
+    <selectKey resultType="long" keyProperty="commentNum" order="BEFORE">
+      <if test="boardType == 3">
+			SELECT SEQ_EXHIBITION_COMMENT_SEQ.NEXTVAL FROM DUAL
+		</if>
+		<if test="boardType == 4">
+			SELECT SEQ_QNA_COMMENT_SEQ.NEXTVAL FROM DUAL
+		</if>
+    </selectKey>
+		<if test="boardType == 3">
+		INSERT INTO EXHIBITION_COMMENT (
+		</if>
+		<if test="boardType == 4">		
+		INSERT INTO QNA_COMMENT (
+		</if>
+				    COMMENT_NUM,
+				    BRD_SEQ,
+				    CONTENT,
+				    USER_ID,
+				    REG_DATE,
+				    PARENT_NUM,
+				    GROUP_NUM,
+				    ORDER_NUM,
+				    INDENT_NUM
+				) VALUES (
+				    #{commentNum},
+				    #{brdSeq},
+				    #{content},
+				    #{userId},
+				    SYSDATE,
+				    #{parentNum},
+				    #{groupNum},
+				    #{orderNum},
+				    #{indentNum}
+				)
+	</insert>
+</mapper>
